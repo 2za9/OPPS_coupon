@@ -1,0 +1,242 @@
+import React, { useState, useEffect } from 'react';
+import { AlertCircle, Wallet, Check, ChevronDown, Copy, ExternalLink } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent } from '@/components/ui/card';
+
+const TokenClaim = () => {
+  const [deviceInfo, setDeviceInfo] = useState({
+    isIOS: false,
+    isAndroid: false
+  });
+  const [walletStatus, setWalletStatus] = useState('initial');
+  const [error, setError] = useState('');
+  const [account, setAccount] = useState('');
+  const [couponCode, setCouponCode] = useState('');
+  const [showManualInput, setShowManualInput] = useState(false);
+  const [showAddressGuide, setShowAddressGuide] = useState(false);
+  const [manualAddress, setManualAddress] = useState('');
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    // 간단한 모바일 기기 감지
+    const userAgent = navigator.userAgent.toLowerCase();
+    setDeviceInfo({
+      isIOS: /iphone|ipad|ipod/.test(userAgent),
+      isAndroid: /android/.test(userAgent)
+    });
+  }, []);
+
+  const getStoreUrl = () => {
+    return deviceInfo.isIOS 
+      ? 'https://apps.apple.com/us/app/metamask/id1438144202'
+      : 'https://play.google.com/store/apps/details?id=io.metamask';
+  };
+
+  const handleMetaMaskRedirect = () => {
+    // 단순히 MetaMask 앱으로 이동 시도
+    if (deviceInfo.isIOS) {
+      window.location.href = 'metamask://';
+    } else {
+      window.location.href = 'https://metamask.app.link/';
+    }
+  };
+
+  const handleManualSubmit = () => {
+    if (!manualAddress.match(/^0x[a-fA-F0-9]{40}$/)) {
+      setError('올바른 지갑 주소를 입력해주세요.');
+      return;
+    }
+    setAccount(manualAddress);
+    setWalletStatus('connected');
+    setError('');
+    setShowManualInput(false);
+  };
+
+  const AddressGuide = () => (
+    <Card className="mt-4">
+      <CardContent className="p-4 space-y-4">
+        <h3 className="font-medium flex items-center gap-2">
+          <ExternalLink className="h-4 w-4" />
+          MetaMask에서 지갑 주소 확인하기
+        </h3>
+        <ol className="space-y-3 text-sm text-gray-600">
+          <li className="flex gap-3">
+            <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center bg-blue-100 text-blue-600 rounded-full font-medium">1</span>
+            <span>MetaMask 앱을 실행합니다</span>
+          </li>
+          <li className="flex gap-3">
+            <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center bg-blue-100 text-blue-600 rounded-full font-medium">2</span>
+            <span>메인 화면의 계정 주소를 길게 누르거나, 계정 주소를 탭하여 복사합니다</span>
+          </li>
+          <li className="flex gap-3">
+            <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center bg-blue-100 text-blue-600 rounded-full font-medium">3</span>
+            <span>또는 오른쪽 상단 계정 메뉴 (⋮) → 계정 세부정보에서도 확인할 수 있습니다</span>
+          </li>
+        </ol>
+        <p className="text-xs text-gray-500 border-t pt-3 mt-3">
+          * 계정 주소는 0x로 시작하는 42자리 문자입니다
+        </p>
+      </CardContent>
+    </Card>
+  );
+
+  const copyAddress = () => {
+    navigator.clipboard.writeText(account);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const submitCoupon = () => {
+    if (!couponCode) {
+      setError('쿠폰 코드를 입력해주세요.');
+      return;
+    }
+    // Handle coupon submission
+    console.log('Submit coupon:', couponCode, 'for account:', account);
+  };
+
+  if (walletStatus === 'connected') {
+    return (
+      <div className="max-w-md mx-auto p-6 space-y-8">
+        <div className="text-center space-y-4">
+          <div className="inline-block p-4 bg-green-50 rounded-full">
+            <Check className="h-8 w-8 text-green-500" />
+          </div>
+          <h1 className="text-2xl font-bold">토큰 수령</h1>
+        </div>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="space-y-2">
+              <label className="text-sm text-gray-500">연결된 지갑</label>
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <span className="font-mono">{`${account.slice(0, 6)}...${account.slice(-4)}`}</span>
+                <button
+                  onClick={copyAddress}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                  title="주소 복사"
+                >
+                  {copied ? (
+                    <Check className="h-4 w-4 text-green-500" />
+                  ) : (
+                    <Copy className="h-4 w-4 text-gray-500" />
+                  )}
+                </button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="space-y-4">
+          <Input
+            placeholder="쿠폰 코드를 입력하세요"
+            value={couponCode}
+            onChange={(e) => setCouponCode(e.target.value)}
+            className="h-12"
+          />
+          
+          {error && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          <Button 
+            onClick={submitCoupon}
+            className="w-full h-12 text-lg"
+          >
+            토큰 수령하기
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-md mx-auto p-6">
+      <div className="text-center space-y-4 mb-8">
+        <div className="inline-block p-4 bg-blue-50 rounded-full">
+          <Wallet className="h-8 w-8 text-blue-500" />
+        </div>
+        <h1 className="text-2xl font-bold">토큰 수령</h1>
+      </div>
+
+      {error && (
+        <Alert variant="destructive" className="mb-6">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      <div className="space-y-6">
+        <div className="space-y-4">
+          <Button
+            onClick={handleMetaMaskRedirect}
+            className="w-full h-12 text-lg"
+          >
+            <img src="/metamask-logo.svg" alt="MetaMask" className="w-6 h-6 mr-2" />
+            MetaMask 앱으로 이동
+          </Button>
+
+          <Button
+            onClick={() => window.location.href = getStoreUrl()}
+            className="w-full h-12 text-lg"
+            variant="outline"
+          >
+            <img src="/metamask-logo.svg" alt="MetaMask" className="w-6 h-6 mr-2" />
+            {deviceInfo.isIOS ? 'App Store에서 설치하기' : 'Play Store에서 설치하기'}
+          </Button>
+        </div>
+
+        <div className="relative">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-gray-200" />
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <button 
+              onClick={() => setShowManualInput(!showManualInput)}
+              className="px-2 bg-white text-blue-600 hover:text-blue-700 flex items-center gap-1"
+            >
+              지갑 연결이 안되시나요?
+              <ChevronDown className={`h-4 w-4 transition-transform ${showManualInput ? 'rotate-180' : ''}`} />
+            </button>
+          </div>
+        </div>
+
+        {showManualInput && (
+          <div className="space-y-4">
+            <div className="relative">
+              <Input
+                placeholder="지갑 주소를 입력하세요 (0x...)"
+                value={manualAddress}
+                onChange={(e) => setManualAddress(e.target.value)}
+                className="h-12"
+              />
+              <button
+                onClick={() => setShowAddressGuide(!showAddressGuide)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                title="지갑 주소 확인 방법"
+              >
+                <ExternalLink className="h-5 w-5" />
+              </button>
+            </div>
+
+            {showAddressGuide && <AddressGuide />}
+
+            <Button 
+              onClick={handleManualSubmit}
+              className="w-full h-12"
+            >
+              주소로 연결하기
+            </Button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default TokenClaim;
