@@ -4,9 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>토큰 수령</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.299.0/umd/lucide.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/@heroicons/react@2.0.18/dist/index.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
     <style>
+        .hidden {
+            display: none;
+        }
         .animate-fadeIn {
             animation: fadeIn 0.3s ease-in-out;
         }
@@ -14,39 +17,46 @@
             from { opacity: 0; }
             to { opacity: 1; }
         }
-        .metamask-guide {
-            display: none;
-        }
-        .metamask-guide.show {
-            display: block;
-        }
     </style>
 </head>
 <body class="bg-gray-50">
-    <div class="max-w-md mx-auto p-6">
+    <!-- 초기 화면 -->
+    <div id="initialScreen" class="max-w-md mx-auto p-6">
         <div class="text-center space-y-4 mb-8">
             <div class="inline-block p-4 bg-blue-50 rounded-full">
-                <i data-lucide="wallet" class="h-8 w-8 text-blue-500"></i>
+                <!-- Wallet icon as SVG -->
+                <svg class="h-8 w-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
+                </svg>
+            </div>
+            <h1 class="text-2xl font-bold">토큰 수령</h1>
+            <p class="text-gray-600">MetaMask 지갑이 필요합니다</p>
+        </div>
+
+        <button id="connectWallet" class="w-full h-12 text-lg bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2">
+            <img src="metamask-logo-white.svg" alt="" class="w-6 h-6">
+            지갑 연결하기
+        </button>
+    </div>
+
+    <!-- MetaMask 설치/실행 화면 -->
+    <div id="metamaskScreen" class="max-w-md mx-auto p-6 hidden">
+        <div class="text-center space-y-4 mb-8">
+            <div class="inline-block p-4 bg-blue-50 rounded-full">
+                <img src="metamask-logo.svg" alt="MetaMask" class="h-8 w-8">
             </div>
             <h1 class="text-2xl font-bold">토큰 수령</h1>
         </div>
 
-        <div id="errorAlert" class="hidden mb-6 p-4 rounded-lg bg-red-50 text-red-700">
-            <div class="flex items-center gap-2">
-                <i data-lucide="alert-circle" class="h-4 w-4"></i>
-                <span id="errorMessage"></span>
-            </div>
-        </div>
-
         <div class="space-y-6">
-            <div class="space-y-4">
+            <div id="metamaskActions" class="space-y-4">
                 <button id="openMetaMask" class="w-full h-12 text-lg bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2">
-                    <img src="metamask-logo-white.svg" alt="MetaMask" class="w-6 h-6">
+                    <img src="metamask-logo-white.svg" alt="" class="w-6 h-6">
                     MetaMask 앱으로 이동
                 </button>
 
                 <button id="openStore" class="w-full h-12 text-lg border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center justify-center gap-2">
-                    <img src="metamask-logo.svg" alt="MetaMask" class="w-6 h-6">
+                    <img src="metamask-logo.svg" alt="" class="w-6 h-6">
                     <span id="storeText">스토어에서 설치하기</span>
                 </button>
             </div>
@@ -58,31 +68,31 @@
                 <div class="relative flex justify-center text-sm">
                     <button id="toggleManualInput" class="px-2 bg-white text-blue-600 hover:text-blue-700 flex items-center gap-1">
                         지갑 연결이 안되시나요?
-                        <i data-lucide="chevron-down" class="h-4 w-4"></i>
+                        <svg class="h-4 w-4 transform transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
                     </button>
                 </div>
             </div>
 
-            <div id="manualInputSection" class="hidden space-y-4 animate-fadeIn">
+            <!-- 수동 입력 섹션 -->
+            <div id="manualInputSection" class="hidden space-y-4">
                 <div class="relative">
-                    <input 
-                        type="text" 
-                        id="walletAddress" 
-                        placeholder="지갑 주소를 입력하세요 (0x...)"
-                        class="w-full h-12 px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                    <button 
-                        id="showGuide" 
-                        class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                        title="지갑 주소 확인 방법"
-                    >
-                        <i data-lucide="help-circle" class="h-5 w-5"></i>
+                    <input type="text" id="walletAddress" placeholder="지갑 주소를 입력하세요 (0x...)"
+                        class="w-full h-12 px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <button id="showGuide" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
                     </button>
                 </div>
 
+                <!-- 지갑 주소 확인 가이드 -->
                 <div id="addressGuide" class="hidden bg-white p-4 rounded-lg border border-gray-200 space-y-4">
                     <h3 class="font-medium flex items-center gap-2">
-                        <i data-lucide="external-link" class="h-4 w-4"></i>
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
                         MetaMask에서 지갑 주소 확인하기
                     </h3>
                     <ol class="space-y-3 text-sm text-gray-600">
@@ -104,7 +114,7 @@
                     </p>
                 </div>
 
-                <button id="connectWallet" class="w-full h-12 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                <button id="submitAddress" class="w-full h-12 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
                     주소로 연결하기
                 </button>
             </div>
@@ -112,19 +122,22 @@
     </div>
 
     <script>
-        // Initialize Lucide icons
-        lucide.createIcons();
-
         // Device detection
         const userAgent = navigator.userAgent.toLowerCase();
         const isIOS = /iphone|ipad|ipod/.test(userAgent);
         const isAndroid = /android/.test(userAgent);
 
-        // Update store text based on device
+        // Update store text
         document.getElementById('storeText').textContent = 
             isIOS ? 'App Store에서 설치하기' : 'Play Store에서 설치하기';
 
-        // MetaMask app button click handler
+        // Initial connect wallet button
+        document.getElementById('connectWallet').addEventListener('click', () => {
+            document.getElementById('initialScreen').classList.add('hidden');
+            document.getElementById('metamaskScreen').classList.remove('hidden');
+        });
+
+        // MetaMask app button
         document.getElementById('openMetaMask').addEventListener('click', () => {
             if (isIOS) {
                 window.location.href = 'metamask://';
@@ -133,7 +146,7 @@
             }
         });
 
-        // Store button click handler
+        // Store button
         document.getElementById('openStore').addEventListener('click', () => {
             const storeUrl = isIOS 
                 ? 'https://apps.apple.com/us/app/metamask/id1438144202'
@@ -141,12 +154,14 @@
             window.location.href = storeUrl;
         });
 
-        // Toggle manual input section
+        // Toggle manual input
         document.getElementById('toggleManualInput').addEventListener('click', (e) => {
             const section = document.getElementById('manualInputSection');
-            const chevron = e.currentTarget.querySelector('[data-lucide="chevron-down"]');
+            const chevron = e.currentTarget.querySelector('svg');
             section.classList.toggle('hidden');
-            chevron.style.transform = section.classList.contains('hidden') ? 'rotate(0deg)' : 'rotate(180deg)';
+            chevron.style.transform = section.classList.contains('hidden') 
+                ? 'rotate(0deg)' 
+                : 'rotate(180deg)';
         });
 
         // Toggle address guide
@@ -155,30 +170,15 @@
             guide.classList.toggle('hidden');
         });
 
-        // Connect wallet button click handler
-        document.getElementById('connectWallet').addEventListener('click', () => {
+        // Submit address
+        document.getElementById('submitAddress').addEventListener('click', () => {
             const address = document.getElementById('walletAddress').value;
             if (!address.match(/^0x[a-fA-F0-9]{40}$/)) {
-                showError('올바른 지갑 주소를 입력해주세요.');
+                alert('올바른 지갑 주소를 입력해주세요.');
                 return;
             }
-            // Handle successful connection
             console.log('Connected with address:', address);
-            hideError();
         });
-
-        // Error handling
-        function showError(message) {
-            const alert = document.getElementById('errorAlert');
-            const messageElement = document.getElementById('errorMessage');
-            messageElement.textContent = message;
-            alert.classList.remove('hidden');
-        }
-
-        function hideError() {
-            const alert = document.getElementById('errorAlert');
-            alert.classList.add('hidden');
-        }
     </script>
 </body>
 </html>
