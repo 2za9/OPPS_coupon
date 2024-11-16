@@ -85,7 +85,7 @@
             <div id="manualInputSection" class="hidden space-y-4">
                 <div class="relative">
                     <input type="text" 
-                           id="walletAddress" 
+                           id="walletAddressInput" 
                            placeholder="지갑 주소를 입력하세요 (0x...)"
                            class="w-full h-12 px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                     <button id="showGuide" 
@@ -146,7 +146,7 @@
                 <div class="space-y-2">
                     <label class="text-sm text-gray-500">연결된 지갑</label>
                     <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <span id="walletAddress" class="font-mono text-sm"></span>
+                        <span id="connectedAddress" class="font-mono text-sm"></span>
                         <button id="copyAddress" class="p-2 hover:bg-gray-100 rounded-full">
                             <svg class="h-4 w-4 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/>
@@ -175,26 +175,68 @@
         const isIOS = /iphone|ipad|ipod/.test(userAgent);
         const isAndroid = /android/.test(userAgent);
         
-        // Update store text based on device
+        // 디바이스에 따른 스토어 텍스트 업데이트
         document.getElementById('storeText').textContent = 
             isIOS ? 'App Store에서 설치하기' : 'Play Store에서 설치하기';
 
-        // Initial connect wallet button
+        // MetaMask 연결 상태
+        let isConnecting = false;
+        let connectionAttempts = 0;
+        const MAX_CONNECTION_ATTEMPTS = 3;
+
+        // 화면 전환 함수
+        function showScreen(screenId) {
+            ['initialScreen', 'metamaskScreen', 'connectedScreen'].forEach(id => {
+                document.getElementById(id).classList.add('hidden');
+            });
+            document.getElementById(screenId).classList.remove('hidden');
+        }
+
+        // 초기 연결 버튼
         document.getElementById('connectWallet').addEventListener('click', () => {
-            document.getElementById('initialScreen').classList.add('hidden');
-            document.getElementById('metamaskScreen').classList.remove('hidden');
+            showScreen('metamaskScreen');
         });
 
-        // MetaMask app button
-        document.getElementById('openMetaMask').addEventListener('click', () => {
-            if (isIOS) {
-                window.location.href = 'metamask://';
-            } else {
-                window.location.href = 'https://metamask.app.link/';
+        // MetaMask 앱 실행
+        document.getElementById('openMetaMask').addEventListener('click', async () => {
+            const appCheckTimeout = 1500;
+            let appOpened = false;
+
+            // 앱 실행 시도
+            try {
+                const openAppPromise = new Promise((resolve) => {
+                    const timeout = setTimeout(() => {
+                        resolve(false);
+                    }, appCheckTimeout);
+
+                    window.addEventListener('blur', () => {
+                        clearTimeout(timeout);
+                        appOpened = true;
+                        resolve(true);
+                    }, { once: true });
+
+                    if (isIOS) {
+                        window.location.href = 'metamask://';
+                    } else {
+                        window.location.href = 'https://metamask.app.link/';
+                    }
+                });
+
+                const opened = await openAppPromise;
+                if (!opened) {
+                    alert('MetaMask 앱을 먼저 설치해주세요.');
+                    const storeUrl = isIOS 
+                        ? 'https://apps.apple.com/us/app/metamask/id1438144202'
+                        : 'https://play.google.com/store/apps/details?id=io.metamask';
+                    window.location.href = storeUrl;
+                }
+            } catch (error) {
+                console.error('앱 실행 오류:', error);
+                alert('MetaMask 앱을 실행할 수 없습니다. 앱을 설치해주세요.');
             }
         });
 
-        // Store button
+        // 스토어 버튼
         document.getElementById('openStore').addEventListener('click', () => {
             const storeUrl = isIOS 
                 ? 'https://apps.apple.com/us/app/metamask/id1438144202'
@@ -202,7 +244,53 @@
             window.location.href = storeUrl;
         });
 
-        // Toggle manual input
+        // MetaMask 연결 함수
+        async function connectMetaMask() {
+            if (isConnecting || !window.ethereum) return;
+            
+            isConnecting = true;
+            connectionAttempts++;
+
+            try {
+                // MetaMask가 완전히 로드될 때까지 대기
+                await new Promise((resolve, reject) => {
+                    const checkMetaMask = () => {
+                        if (window.ethereum.isMetaMask) {
+                            resolve();
+                        } else if (connectionAttempts >= MAX_CONNECTION_ATTEMPTS) {
+                            reject(new Error('MetaMask 연결 시간 초과'));
+                        } else {
+                            setTimeout(checkMetaMask, 1000);
+                        }
+                    };
+                    checkMetaMask();
+                });
+
+                const accounts = await window.ethereum.request({
+                    method: 'eth_requestAccounts'
+                });
+                
+                if (accounts && accounts.length > 0) {
+                    const address = accounts[0];
+                    document.getElementById('connectedAddress').textContent = 
+                        `${address.slice(0, 6)}...${address.slice(-4)}`;
+                    showScreen('connectedScreen');
+                    isConnecting = false;
+                    connectionAttempts = 0;
+                }
+            } catch (error) {
+                console.error('MetaMask 연결 오류:', error);
+                if (connectionAttempts >= MAX_CONNECTION_ATTEMPTS) {
+                    alert('MetaMask 연결에 실패했습니다. 다시 시도해주세요.');
+                    isConnecting = false;
+                    connectionAttempts = 0;
+                } else {
+                    setTimeout(connectMetaMask, 1000);
+                }
+            }
+        }
+
+        // 수동 입력 토글
         document.getElementById('toggleManualInput').addEventListener('click', (e) => {
             const section = document.getElementById('manualInputSection');
             const chevron = e.currentTarget.querySelector('svg');
@@ -212,33 +300,31 @@
                 : 'rotate(180deg)';
         });
 
-        // Toggle address guide
+        // 주소 가이드 토글
         document.getElementById('showGuide').addEventListener('click', () => {
             const guide = document.getElementById('addressGuide');
             guide.classList.toggle('hidden');
         });
 
-        // Handle manual address submission
+        // 수동 주소 입력 제출
         document.getElementById('submitAddress').addEventListener('click', () => {
-            const address = document.getElementById('walletAddress').value;
+            const address = document.getElementById('walletAddressInput').value.trim();
             if (!address.match(/^0x[a-fA-F0-9]{40}$/)) {
                 alert('올바른 지갑 주소를 입력해주세요.');
                 return;
             }
             
-            // Show connected screen
-            document.getElementById('metamaskScreen').classList.add('hidden');
-            document.getElementById('connectedScreen').classList.remove('hidden');
-            
-            // Update wallet address display
-            const displayAddress = document.getElementById('walletAddress');
-            displayAddress.textContent = `${address.slice(0, 6)}...${address.slice(-4)}`;
+            document.getElementById('connectedAddress').textContent = 
+                `${address.slice(0, 6)}...${address.slice(-4)}`;
+            showScreen('connectedScreen');
         });
 
-        // Copy address functionality
+        // 주소 복사
         document.getElementById('copyAddress').addEventListener('click', () => {
-            const address = document.getElementById('walletAddress').textContent;
-            navigator.clipboard.writeText(address.replace('...', ''))
+            const address = document.getElementById('connectedAddress').textContent;
+            const fullAddress = address.replace('...', '');
+            
+            navigator.clipboard.writeText(fullAddress)
                 .then(() => {
                     alert('주소가 복사되었습니다.');
                 })
@@ -248,69 +334,42 @@
                 });
         });
 
-        // Submit coupon
+        // 쿠폰 제출
         document.getElementById('submitCoupon').addEventListener('click', () => {
-            const couponCode = document.getElementById('couponCode').value;
+            const couponCode = document.getElementById('couponCode').value.trim();
             if (!couponCode) {
                 alert('쿠폰 코드를 입력해주세요.');
                 return;
             }
             
-            // Here you would typically send the coupon code to your backend
-            console.log('Submitting coupon:', couponCode);
-            // Add your coupon submission logic here
+            // 여기에 쿠폰 제출 로직 추가
+            console.log('쿠폰 제출:', couponCode);
         });
 
-        // Check if returning from MetaMask app
+        // MetaMask 앱에서 돌아왔을 때 연결 시도
         window.addEventListener('focus', () => {
-            if (document.getElementById('metamaskScreen').classList.contains('hidden')) {
-                return;
-            }
-            
-            // Check if MetaMask is now available
-            if (typeof window.ethereum !== 'undefined') {
-                connectMetaMask();
+            if (!document.getElementById('metamaskScreen').classList.contains('hidden')) {
+                setTimeout(() => {
+                    if (window.ethereum && connectionAttempts < MAX_CONNECTION_ATTEMPTS) {
+                        connectMetaMask();
+                    }
+                }, 1000);
             }
         });
 
-        // MetaMask connection function
-        async function connectMetaMask() {
-            if (typeof window.ethereum !== 'undefined') {
-                try {
-                    const accounts = await window.ethereum.request({
-                        method: 'eth_requestAccounts'
-                    });
-                    
-                    if (accounts.length > 0) {
-                        const address = accounts[0];
-                        document.getElementById('metamaskScreen').classList.add('hidden');
-                        document.getElementById('connectedScreen').classList.remove('hidden');
-                        document.getElementById('walletAddress').textContent = 
-                            `${address.slice(0, 6)}...${address.slice(-4)}`;
-                    }
-                } catch (error) {
-                    console.error('MetaMask connection error:', error);
-                    alert('MetaMask 연결에 실패했습니다. 다시 시도해주세요.');
-                }
-            }
-        }
-
-        // Listen for MetaMask account changes
-        if (typeof window.ethereum !== 'undefined') {
+        // MetaMask 계정 변경 감지
+        if (window.ethereum) {
             window.ethereum.on('accountsChanged', function (accounts) {
                 if (accounts.length > 0) {
                     const address = accounts[0];
-                    document.getElementById('walletAddress').textContent = 
+                    document.getElementById('connectedAddress').textContent = 
                         `${address.slice(0, 6)}...${address.slice(-4)}`;
                 } else {
-                    // Handle disconnection
-                    document.getElementById('connectedScreen').classList.add('hidden');
-                    document.getElementById('initialScreen').classList.remove('hidden');
+                    showScreen('initialScreen');
                 }
             });
 
             window.ethereum.on('chainChanged', function () {
-                // Reload page on chain change
                 window.location.reload();
             });
         }
