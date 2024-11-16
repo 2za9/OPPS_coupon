@@ -103,12 +103,26 @@
         const isIOS = /iphone|ipad|ipod/.test(userAgent);
         const isAndroid = /android/.test(userAgent);
 
-        // MetaMask 연결 및 리디렉션
-        const appUrl = 'https://your-link.com'; // QR코드로 접속한 링크
+        const appUrl = 'https://your-link.com';
         const deepLink = isIOS ? `metamask://dapp/${appUrl}` : `https://metamask.app.link/dapp/${appUrl}`;
 
-        document.getElementById('connectWallet').addEventListener('click', () => {
-            window.location.href = deepLink;
+        document.getElementById('connectWallet').addEventListener('click', async () => {
+            if (typeof window.ethereum !== 'undefined') {
+                try {
+                    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    if (accounts.length > 0) {
+                        const address = accounts[0];
+                        document.getElementById('initialScreen').classList.add('hidden');
+                        document.getElementById('connectedScreen').classList.remove('hidden');
+                        document.getElementById('walletAddress').textContent = `${address.slice(0, 6)}...${address.slice(-4)}`;
+                    }
+                } catch (error) {
+                    console.error('MetaMask 연결 실패:', error);
+                    alert('MetaMask 연결에 실패했습니다. 다시 시도해주세요.');
+                }
+            } else {
+                alert('MetaMask가 설치되지 않았습니다. App Store 또는 Play Store에서 MetaMask를 설치해주세요.');
+            }
         });
 
         document.getElementById('openMetaMask').addEventListener('click', () => {
@@ -122,50 +136,39 @@
             window.location.href = storeUrl;
         });
 
-        async function connectMetaMask() {
-            if (typeof window.ethereum !== 'undefined') {
-                try {
-                    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-                    if (accounts.length > 0) {
-                        const address = accounts[0];
-                        showConnectedScreen(address);
-                    }
-                } catch (error) {
-                    console.error('MetaMask 연결 실패:', error);
-                    alert('MetaMask 연결에 실패했습니다. 다시 시도해주세요.');
-                }
-            } else {
-                alert('MetaMask가 설치되지 않았습니다. App Store 또는 Play Store에서 설치해주세요.');
-            }
-        }
-
-        function showConnectedScreen(address) {
-            document.getElementById('metamaskScreen').classList.add('hidden');
-            document.getElementById('connectedScreen').classList.remove('hidden');
-            const displayAddress = document.getElementById('walletAddress');
-            displayAddress.textContent = `${address.slice(0, 6)}...${address.slice(-4)}`;
-        }
-
         document.getElementById('copyAddress').addEventListener('click', () => {
             const address = document.getElementById('walletAddress').textContent.replace('...', '');
             navigator.clipboard.writeText(address)
                 .then(() => alert('주소가 복사되었습니다.'))
-                .catch((err) => {
+                .catch(err => {
                     console.error('주소 복사 실패:', err);
                     alert('주소 복사에 실패했습니다.');
                 });
         });
 
-        window.addEventListener('focus', () => {
+        window.addEventListener('focus', async () => {
             if (typeof window.ethereum !== 'undefined') {
-                connectMetaMask();
+                try {
+                    const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+                    if (accounts.length > 0) {
+                        const address = accounts[0];
+                        document.getElementById('initialScreen').classList.add('hidden');
+                        document.getElementById('connectedScreen').classList.remove('hidden');
+                        document.getElementById('walletAddress').textContent = `${address.slice(0, 6)}...${address.slice(-4)}`;
+                    }
+                } catch (error) {
+                    console.error('MetaMask 연결 확인 실패:', error);
+                }
             }
         });
 
         if (typeof window.ethereum !== 'undefined') {
             window.ethereum.on('accountsChanged', (accounts) => {
                 if (accounts.length > 0) {
-                    showConnectedScreen(accounts[0]);
+                    const address = accounts[0];
+                    document.getElementById('initialScreen').classList.add('hidden');
+                    document.getElementById('connectedScreen').classList.remove('hidden');
+                    document.getElementById('walletAddress').textContent = `${address.slice(0, 6)}...${address.slice(-4)}`;
                 } else {
                     document.getElementById('connectedScreen').classList.add('hidden');
                     document.getElementById('initialScreen').classList.remove('hidden');
